@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>민아수산 | 강릉 물회 & 조개구이</title>
+    <meta
+      name="description"
+      content="강릉 바다 앞에서 즐기는 민아수산의 시원한 물회와 밤 조개구이."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="site-shell">
+      <section class="hero" aria-label="민아수산 메인">
+        <div class="hero-photo" aria-hidden="true"></div>
+        <div class="grain" aria-hidden="true"></div>
+
+        <header class="topbar">
+          <a class="brand" href="#home" aria-label="민아수산 홈">
+            <span class="brand-mark">민아수산</span>
+            <span class="brand-sub">Gangneung</span>
+          </a>
+          <nav class="nav" aria-label="주요 메뉴">
+            <a href="#menu">메뉴</a>
+            <a href="#reserve">예약</a>
+          </nav>
+        </header>
+
+        <div class="hero-content" id="home">
+          <p class="overline">강릉 바다 앞 물회 & 조개구이</p>
+          <h1>올 여름,<br />민아수산</h1>
+          <p class="hero-copy">
+            낮에는 살얼음 물회처럼 시원하게, 밤에는 숯불 조개구이처럼 따뜻하게.
+            파도 소리와 함께 머무는 작은 바닷가 식탁입니다.
+          </p>
+          <div class="hero-actions" aria-label="바로가기">
+            <a class="primary-button" href="#reserve">예약하기</a>
+            <a class="text-button" href="#menu">메뉴 보기</a>
+          </div>
+        </div>
+
+        <div class="tide-note" aria-hidden="true">
+          <span>Mulhoe</span>
+          <span>Shell Grill</span>
+          <span>Summer Night</span>
+        </div>
+      </section>
+
+      <section class="menu-section" id="menu" aria-labelledby="menu-title">
+        <div class="section-inner">
+          <p class="section-kicker">Menu</p>
+          <h2 id="menu-title">오늘 바다의 맛</h2>
+          <div class="menu-grid">
+            <article class="menu-item feature">
+              <div>
+                <span class="menu-type">Signature</span>
+                <h3>민아 물회</h3>
+              </div>
+              <p>차갑게 낸 육수, 쫄깃한 해산물, 여름 채소를 한 그릇에 담았습니다.</p>
+            </article>
+            <article class="menu-item">
+              <div>
+                <span class="menu-type">Night</span>
+                <h3>모둠 조개구이</h3>
+              </div>
+              <p>해가 내려앉은 뒤 더 좋은, 불향 가득한 조개 한 판.</p>
+            </article>
+            <article class="menu-item">
+              <div>
+                <span class="menu-type">Fresh</span>
+                <h3>해산물 한 접시</h3>
+              </div>
+              <p>가볍게 곁들이기 좋은 제철 해산물을 깔끔하게 냅니다.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="reserve-section" id="reserve" aria-labelledby="reserve-title">
+        <div class="section-inner reserve-layout">
+          <div>
+            <p class="section-kicker">Reservation</p>
+            <h2 id="reserve-title">바다 보러 오는 날,<br />자리도 같이 남겨둘게요</h2>
+          </div>
+          <form class="reserve-form" aria-label="예약 문의">
+            <label>
+              <span>이름</span>
+              <input type="text" name="name" placeholder="예약자명" />
+            </label>
+            <label>
+              <span>연락처</span>
+              <input type="tel" name="phone" placeholder="010-0000-0000" />
+            </label>
+            <label>
+              <span>방문 인원</span>
+              <select name="guests">
+                <option>2명</option>
+                <option>3명</option>
+                <option>4명</option>
+                <option>5명 이상</option>
+              </select>
+            </label>
+            <button type="submit">예약 문의 보내기</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
