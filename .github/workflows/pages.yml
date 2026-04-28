@@ -27,6 +27,16 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Create Supabase config
+        run: |
+          cat > supabase-config.js <<'EOF'
+          window.MINAH_SUPABASE = {
+            url: "${{ vars.SUPABASE_URL }}",
+            anonKey: "${{ secrets.SUPABASE_PUBLISHABLE_KEY }}",
+            table: "congrats_messages",
+          };
+          EOF
+
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3
         with:

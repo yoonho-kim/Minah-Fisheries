@@ -9,8 +9,18 @@
       content="강릉 바다 앞에서 즐기는 민아수산의 시원한 물회와 밤 조개구이."
     />
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   </head>
   <body>
+    <div class="opening-popup" id="openingPopup" role="dialog" aria-modal="true" aria-label="민아수산 오픈 안내">
+      <button class="opening-popup__backdrop" type="button" aria-label="팝업 닫기">
+        <span class="opening-popup__frame">
+          <img src="assets/opening-popup.png" alt="민아수산 오픈 예정 안내" />
+          <span class="opening-popup__hint">눌러서 닫기</span>
+        </span>
+      </button>
+    </div>
+
     <main class="site-shell">
       <section class="hero" aria-label="민아수산 메인">
         <div class="hero-photo" aria-hidden="true"></div>
@@ -23,6 +33,7 @@
           </a>
           <nav class="nav" aria-label="주요 메뉴">
             <a href="#menu">메뉴</a>
+            <a href="#celebrate">축하인사</a>
             <a href="#reserve">예약</a>
           </nav>
         </header>
@@ -77,6 +88,46 @@
         </div>
       </section>
 
+      <section class="celebrate-section" id="celebrate" aria-labelledby="celebrate-title">
+        <div class="section-inner celebrate-layout">
+          <div class="celebrate-copy">
+            <p class="section-kicker">Congratulations</p>
+            <h2 id="celebrate-title">민아수산에<br />축하 인사를 남겨주세요</h2>
+            <p>
+              오픈을 기다리는 마음, 여름밤에 다시 오겠다는 약속, 가볍고 다정한 한마디를
+              이곳에 남길 수 있습니다.
+            </p>
+          </div>
+
+          <div class="guestbook-panel">
+            <form class="guestbook-form" id="guestbookForm" aria-label="축하 인사 작성">
+              <label>
+                <span>이름</span>
+                <input type="text" name="name" maxlength="40" placeholder="이름 또는 별명" required />
+              </label>
+              <label>
+                <span>축하 인사</span>
+                <textarea
+                  name="message"
+                  maxlength="500"
+                  rows="5"
+                  placeholder="민아수산에 전하고 싶은 말을 남겨주세요."
+                  required
+                ></textarea>
+              </label>
+              <button type="submit">인사 남기기</button>
+              <p class="form-status" id="guestbookStatus" role="status"></p>
+            </form>
+
+            <div class="message-list" id="messageList" aria-live="polite">
+              <article class="message-card placeholder-card">
+                <p>Supabase 연결 후 축하 인사가 이곳에 차곡차곡 쌓입니다.</p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="reserve-section" id="reserve" aria-labelledby="reserve-title">
         <div class="section-inner reserve-layout">
           <div>
@@ -106,5 +157,9 @@
         </div>
       </section>
     </main>
+
+    <script src="supabase-config.js"></script>
+    <script src="guestbook.js"></script>
+    <script src="popup.js"></script>
   </body>
 </html>
