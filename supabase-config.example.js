@@ -1,5 +1,5 @@
 window.MINAH_SUPABASE = {
   url: "https://YOUR_PROJECT_ID.supabase.co",
   anonKey: "YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY",
-  table: "congrats_messages",
+  reservationTable: "reservation_requests",
 };

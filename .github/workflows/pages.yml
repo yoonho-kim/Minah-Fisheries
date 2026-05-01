@@ -33,7 +33,7 @@ jobs:
           window.MINAH_SUPABASE = {
             url: "${{ vars.SUPABASE_URL }}",
             anonKey: "${{ secrets.SUPABASE_PUBLISHABLE_KEY }}",
-            table: "congrats_messages",
+            reservationTable: "reservation_requests",
           };
           EOF
 

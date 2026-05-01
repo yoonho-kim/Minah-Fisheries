@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>민아수산 예약 확인</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+  <body class="admin-page">
+    <main class="admin-shell">
+      <section class="admin-login" id="adminLogin">
+        <p class="section-kicker">Staff Only</p>
+        <h1>예약 확인</h1>
+        <p>등록된 관리자 이메일로 로그인 링크를 받아 예약 내용을 확인합니다.</p>
+        <form class="admin-auth-form" id="adminAuthForm">
+          <label>
+            <span>관리자 이메일</span>
+            <input type="email" name="email" placeholder="name@example.com" required />
+          </label>
+          <button type="submit">로그인 링크 받기</button>
+          <p class="form-status" id="adminAuthStatus" role="status"></p>
+        </form>
+      </section>
+
+      <section class="admin-dashboard" id="adminDashboard" hidden>
+        <div class="admin-heading">
+          <div>
+            <p class="section-kicker">Reservations</p>
+            <h1>민아수산 예약 목록</h1>
+          </div>
+          <div class="admin-actions">
+            <button type="button" id="refreshReservations">새로고침</button>
+            <button type="button" id="adminLogout">로그아웃</button>
+          </div>
+        </div>
+
+        <p class="form-status" id="adminStatus" role="status"></p>
+        <div class="reservation-list" id="reservationList"></div>
+      </section>
+    </main>
+
+    <script src="supabase-config.js"></script>
+    <script src="admin.js"></script>
+  </body>
+</html>

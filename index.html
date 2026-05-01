@@ -6,160 +6,226 @@
     <title>민아수산 | 강릉 물회 & 조개구이</title>
     <meta
       name="description"
-      content="강릉 바다 앞에서 즐기는 민아수산의 시원한 물회와 밤 조개구이."
+      content="강릉 바다 앞에서 만나는 시원한 물회와 푸짐한 조개구이, 민아수산."
     />
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   </head>
   <body>
-    <div class="opening-popup" id="openingPopup" role="dialog" aria-modal="true" aria-label="민아수산 오픈 안내">
-      <button class="opening-popup__backdrop" type="button" aria-label="팝업 닫기">
-        <span class="opening-popup__frame">
-          <img src="assets/opening-popup.png" alt="민아수산 오픈 예정 안내" />
-          <span class="opening-popup__hint">눌러서 닫기</span>
-        </span>
-      </button>
-    </div>
-
     <main class="site-shell">
-      <section class="hero" aria-label="민아수산 메인">
-        <div class="hero-photo" aria-hidden="true"></div>
-        <div class="grain" aria-hidden="true"></div>
-
+      <section class="hero" id="home" aria-label="민아수산 메인">
         <header class="topbar">
           <a class="brand" href="#home" aria-label="민아수산 홈">
-            <span class="brand-mark">민아수산</span>
-            <span class="brand-sub">Gangneung</span>
+            <span class="brand-icon" aria-hidden="true"><span></span></span>
+            <span>
+              <strong>민아수산</strong>
+              <em>물회 & 조개구이</em>
+            </span>
           </a>
           <nav class="nav" aria-label="주요 메뉴">
             <a href="#menu">메뉴</a>
-            <a href="#celebrate">축하인사</a>
             <a href="#reserve">예약</a>
           </nav>
         </header>
 
-        <div class="hero-content" id="home">
-          <p class="overline">강릉 바다 앞 물회 & 조개구이</p>
-          <h1>올 여름,<br />민아수산</h1>
-          <p class="hero-copy">
-            낮에는 살얼음 물회처럼 시원하게, 밤에는 숯불 조개구이처럼 따뜻하게.
-            파도 소리와 함께 머무는 작은 바닷가 식탁입니다.
-          </p>
-          <div class="hero-actions" aria-label="바로가기">
-            <a class="primary-button" href="#reserve">예약하기</a>
-            <a class="text-button" href="#menu">메뉴 보기</a>
+        <div class="hero-inner">
+          <div class="hero-copy">
+            <p class="overline">Gangneung Seafood Table</p>
+            <h1>강릉 바다 앞<br />민아수산</h1>
+            <p>
+              살얼음 물회와 노릇한 조개구이를 밝고 편안한 공간에서 즐겨보세요.
+              민아수산은 오늘도 싱싱한 바다의 맛을 준비합니다.
+            </p>
+            <div class="hero-actions">
+              <a class="primary-button" href="#reserve">예약 문의</a>
+              <a class="outline-button" href="#menu">메뉴 보기</a>
+            </div>
           </div>
-        </div>
 
-        <div class="tide-note" aria-hidden="true">
-          <span>Mulhoe</span>
-          <span>Shell Grill</span>
-          <span>Summer Night</span>
+          <aside class="hero-sign" aria-label="오픈 안내">
+            <span>5월 2일 OPEN</span>
+            <strong>물회 · 조개구이 전문</strong>
+            <p>가볍게 한 그릇, 푸짐하게 한 판</p>
+          </aside>
         </div>
       </section>
 
       <section class="menu-section" id="menu" aria-labelledby="menu-title">
-        <div class="section-inner">
-          <p class="section-kicker">Menu</p>
-          <h2 id="menu-title">오늘 바다의 맛</h2>
-          <div class="menu-grid">
-            <article class="menu-item feature">
-              <div>
-                <span class="menu-type">Signature</span>
-                <h3>민아 물회</h3>
-              </div>
-              <p>차갑게 낸 육수, 쫄깃한 해산물, 여름 채소를 한 그릇에 담았습니다.</p>
-            </article>
-            <article class="menu-item">
-              <div>
-                <span class="menu-type">Night</span>
-                <h3>모둠 조개구이</h3>
-              </div>
-              <p>해가 내려앉은 뒤 더 좋은, 불향 가득한 조개 한 판.</p>
-            </article>
-            <article class="menu-item">
-              <div>
-                <span class="menu-type">Fresh</span>
-                <h3>해산물 한 접시</h3>
-              </div>
-              <p>가볍게 곁들이기 좋은 제철 해산물을 깔끔하게 냅니다.</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="celebrate-section" id="celebrate" aria-labelledby="celebrate-title">
-        <div class="section-inner celebrate-layout">
-          <div class="celebrate-copy">
-            <p class="section-kicker">Congratulations</p>
-            <h2 id="celebrate-title">민아수산에<br />축하 인사를 남겨주세요</h2>
+        <div class="section-inner menu-layout">
+          <div class="section-heading">
+            <p class="section-kicker">Menu Board</p>
+            <h2 id="menu-title">민아수산 메뉴</h2>
             <p>
-              오픈을 기다리는 마음, 여름밤에 다시 오겠다는 약속, 가볍고 다정한 한마디를
-              이곳에 남길 수 있습니다.
+              실제 메뉴판의 파란 테두리와 빨간 가격 포인트를 살려, 한눈에 보기 좋게
+              정리했습니다.
             </p>
           </div>
 
-          <div class="guestbook-panel">
-            <form class="guestbook-form" id="guestbookForm" aria-label="축하 인사 작성">
-              <label>
-                <span>이름</span>
-                <input type="text" name="name" maxlength="40" placeholder="이름 또는 별명" required />
-              </label>
-              <label>
-                <span>축하 인사</span>
-                <textarea
-                  name="message"
-                  maxlength="500"
-                  rows="5"
-                  placeholder="민아수산에 전하고 싶은 말을 남겨주세요."
-                  required
-                ></textarea>
-              </label>
-              <button type="submit">인사 남기기</button>
-              <p class="form-status" id="guestbookStatus" role="status"></p>
-            </form>
+          <div class="menu-visual-grid">
+            <article class="menu-visual-card">
+              <img src="assets/menu-mulhoe-summer.png?v=2" alt="여름 바다 앞 시원한 민아 물회" />
+              <div>
+                <span>Fresh Mulhoe</span>
+                <strong>바다 앞 물회</strong>
+              </div>
+            </article>
+            <article class="menu-visual-card">
+              <img src="assets/menu-shell-grill-bright.png" alt="밝은 바다 앞 조개구이 한 판" />
+              <div>
+                <span>Shell Grill</span>
+                <strong>동해안 조개구이</strong>
+              </div>
+            </article>
+          </div>
 
-            <div class="message-list" id="messageList" aria-live="polite">
-              <article class="message-card placeholder-card">
-                <p>Supabase 연결 후 축하 인사가 이곳에 차곡차곡 쌓입니다.</p>
-              </article>
-            </div>
+          <div class="menu-board-grid">
+            <article class="menu-board aqua-board">
+              <header>
+                <span>민아수산 메뉴</span>
+                <h3>물회</h3>
+              </header>
+              <ul class="price-list">
+                <li><span>기본물회</span><strong>18,000</strong></li>
+                <li><span>가자미물회</span><strong>17,000</strong></li>
+                <li><span>뼈물회</span><strong>20,000</strong></li>
+                <li><span>전복물회</span><strong>23,000</strong></li>
+                <li><span>민아스페셜</span><strong>25,000</strong></li>
+              </ul>
+            </article>
+
+            <article class="menu-board navy-board">
+              <header>
+                <span>동해안 직판</span>
+                <h3>조개구이</h3>
+              </header>
+              <ul class="price-list">
+                <li><span>모둠조개구이 소</span><strong>49,000</strong></li>
+                <li><span>모둠조개구이 중</span><strong>69,000</strong></li>
+                <li><span>모둠조개구이 대</span><strong>89,000</strong></li>
+                <li><span>가리비구이 중</span><strong>55,000</strong></li>
+                <li><span>가리비구이 대</span><strong>75,000</strong></li>
+                <li><span>전복·새우 버터구이</span><strong>55,000</strong></li>
+              </ul>
+            </article>
+
+            <article class="menu-board">
+              <header>
+                <span>사이드 메뉴</span>
+                <h3>회 · 찜 · 식사류</h3>
+              </header>
+              <ul class="price-list compact">
+                <li><span>가리비회</span><strong>30,000</strong></li>
+                <li><span>가리비찜</span><strong>30,000</strong></li>
+                <li><span>전복회</span><strong>30,000</strong></li>
+                <li><span>문어숙회</span><strong>싯가</strong></li>
+                <li><span>오징어순대</span><strong>17,000</strong></li>
+                <li><span>회덮밥</span><strong>18,000</strong></li>
+                <li><span>전복죽</span><strong>16,000</strong></li>
+                <li><span>해물라면</span><strong>10,000</strong></li>
+                <li><span>홍게라면</span><strong>10,000</strong></li>
+              </ul>
+            </article>
+
+            <article class="menu-board drink-board">
+              <header>
+                <span>주류</span>
+                <h3>곁들이는 잔</h3>
+              </header>
+              <ul class="price-list compact">
+                <li><span>소주</span><strong>5,000</strong></li>
+                <li><span>맥주</span><strong>5,000</strong></li>
+                <li><span>청하</span><strong>6,000</strong></li>
+                <li><span>막걸리</span><strong>4,000</strong></li>
+                <li><span>복분자</span><strong>15,000</strong></li>
+                <li><span>음료</span><strong>2,000</strong></li>
+              </ul>
+              <p>추가 메뉴: 가리비 · 전복 · 새우 각 10,000 / 치즈 2,000</p>
+            </article>
           </div>
         </div>
       </section>
 
       <section class="reserve-section" id="reserve" aria-labelledby="reserve-title">
         <div class="section-inner reserve-layout">
-          <div>
+          <div class="reserve-copy">
             <p class="section-kicker">Reservation</p>
-            <h2 id="reserve-title">바다 보러 오는 날,<br />자리도 같이 남겨둘게요</h2>
+            <h2 id="reserve-title">방문 전 간단히<br />예약 문의를 남겨주세요</h2>
+            <p>
+              날짜와 인원, 관심 메뉴를 알려주시면 확인 후 연락드립니다. 가족 식사,
+              단체 방문, 창가 자리 요청도 편하게 남겨주세요.
+            </p>
+            <div class="reserve-note">
+              <span>밝은 낮에는 물회</span>
+              <span>해질 무렵에는 조개구이</span>
+            </div>
           </div>
-          <form class="reserve-form" aria-label="예약 문의">
+
+          <form class="reserve-form" id="reservationForm" aria-label="예약 문의">
+            <div class="form-row">
+              <label>
+                <span>이름</span>
+                <input type="text" name="name" maxlength="40" placeholder="예약자명" required />
+              </label>
+              <label>
+                <span>연락처</span>
+                <input type="tel" name="phone" maxlength="30" placeholder="010-0000-0000" required />
+              </label>
+            </div>
+            <div class="form-row">
+              <label>
+                <span>방문 날짜</span>
+                <input type="date" name="visit_date" required />
+              </label>
+              <label>
+                <span>방문 시간</span>
+                <select name="visit_time" required>
+                  <option value="">시간 선택</option>
+                  <option>17:00</option>
+                  <option>18:00</option>
+                  <option>19:00</option>
+                  <option>20:00</option>
+                  <option>21:00</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>
+                <span>방문 인원</span>
+                <select name="guests" required>
+                  <option value="">인원 선택</option>
+                  <option>2명</option>
+                  <option>3명</option>
+                  <option>4명</option>
+                  <option>5명 이상</option>
+                </select>
+              </label>
+              <label>
+                <span>관심 메뉴</span>
+                <select name="menu_interest">
+                  <option>민아 물회</option>
+                  <option>모둠 조개구이</option>
+                  <option>물회와 조개구이</option>
+                  <option>방문 후 선택</option>
+                </select>
+              </label>
+            </div>
             <label>
-              <span>이름</span>
-              <input type="text" name="name" placeholder="예약자명" />
-            </label>
-            <label>
-              <span>연락처</span>
-              <input type="tel" name="phone" placeholder="010-0000-0000" />
-            </label>
-            <label>
-              <span>방문 인원</span>
-              <select name="guests">
-                <option>2명</option>
-                <option>3명</option>
-                <option>4명</option>
-                <option>5명 이상</option>
-              </select>
+              <span>요청사항</span>
+              <textarea
+                name="memo"
+                maxlength="500"
+                rows="4"
+                placeholder="아이 동반, 창가 자리, 단체 예약 등 필요한 내용을 남겨주세요."
+              ></textarea>
             </label>
             <button type="submit">예약 문의 보내기</button>
+            <p class="form-status" id="reservationStatus" role="status"></p>
           </form>
         </div>
       </section>
     </main>
 
     <script src="supabase-config.js"></script>
-    <script src="guestbook.js"></script>
-    <script src="popup.js"></script>
+    <script src="reservation.js"></script>
   </body>
 </html>
