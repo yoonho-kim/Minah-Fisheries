@@ -6,4 +6,5 @@ window.MINAH_SUPABASE = {
   leagueSummaryView: "league_betting_summary",
   leagueBetsTable: "league_bets",
   castLeagueBetFunction: "cast_league_bet",
+  leagueVoteEndpoint: "https://YOUR_PROJECT_ID.supabase.co/functions/v1/cast-league-bet",
 };

@@ -85,11 +85,24 @@ create table if not exists public.league_bets (
   id uuid primary key default gen_random_uuid(),
   match_id uuid not null references public.league_matches(id) on delete cascade,
   bettor_key text not null check (char_length(bettor_key) between 8 and 120),
+  ip_hash text check (char_length(ip_hash) between 32 and 128),
   team text not null check (team in ('a', 'b')),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (match_id, bettor_key)
+  updated_at timestamptz not null default now()
 );
+
+alter table public.league_bets
+add column if not exists ip_hash text check (char_length(ip_hash) between 32 and 128);
+
+alter table public.league_bets
+drop constraint if exists league_bets_match_id_bettor_key_key;
+
+create unique index if not exists league_bets_match_ip_hash_uidx
+on public.league_bets (match_id, ip_hash)
+where ip_hash is not null;
+
+create index if not exists league_bets_match_bettor_key_idx
+on public.league_bets (match_id, bettor_key);
 
 create index if not exists league_bets_match_id_idx
 on public.league_bets (match_id);
@@ -138,8 +151,8 @@ select
   count(b.id) as total_bets,
   count(b.id) filter (where b.team = 'a') as team_a_bets,
   count(b.id) filter (where b.team = 'b') as team_b_bets,
-  coalesce(round(count(b.id) filter (where b.team = 'a') * 100.0 / nullif(count(b.id), 0), 1), 50.0) as team_a_percent,
-  coalesce(round(count(b.id) filter (where b.team = 'b') * 100.0 / nullif(count(b.id), 0), 1), 50.0) as team_b_percent,
+  coalesce(round(count(b.id) filter (where b.team = 'a') * 100.0 / nullif(count(b.id), 0), 1), 0.0) as team_a_percent,
+  coalesce(round(count(b.id) filter (where b.team = 'b') * 100.0 / nullif(count(b.id), 0), 1), 0.0) as team_b_percent,
   case
     when count(b.id) filter (where b.team = 'a') = 0 then null
     else round(count(b.id) * 1.0 / count(b.id) filter (where b.team = 'a'), 2)
@@ -152,14 +165,19 @@ from public.league_matches m
 left join public.league_bets b on b.match_id = m.id
 group by m.id;
 
+drop function if exists public.cast_league_bet(text, text, text);
+
 create or replace function public.cast_league_bet(
   p_match_slug text,
   p_bettor_key text,
-  p_team text
+  p_team text,
+  p_ip_hash text
 )
 returns table (
   match_id uuid,
   selected_team text,
+  accepted boolean,
+  already_voted boolean,
   total_bets bigint,
   team_a_bets bigint,
   team_b_bets bigint
@@ -176,26 +194,41 @@ as $$
     limit 1
   ),
   upserted as (
-    insert into public.league_bets as lb (match_id, bettor_key, team)
-    select id, trim(p_bettor_key), p_team
+    insert into public.league_bets as lb (match_id, bettor_key, ip_hash, team)
+    select id, trim(p_bettor_key), trim(p_ip_hash), p_team
     from target_match
     where p_team in ('a', 'b')
       and char_length(trim(p_bettor_key)) between 8 and 120
-    on conflict (match_id, bettor_key) do update
-    set
-      team = excluded.team,
-      updated_at = now()
+      and char_length(trim(p_ip_hash)) between 32 and 128
+    on conflict (match_id, ip_hash) where ip_hash is not null do nothing
     returning lb.match_id, lb.team
+  ),
+  selected_match as (
+    select id as match_id from target_match
+    union
+    select match_id from upserted
+    limit 1
+  ),
+  previous_vote as (
+    select b.match_id, b.team
+    from public.league_bets b
+    join selected_match sm on sm.match_id = b.match_id
+    where b.ip_hash = trim(p_ip_hash)
+    limit 1
   )
   select
-    u.match_id,
-    u.team as selected_team,
+    sm.match_id,
+    coalesce(u.team, pv.team) as selected_team,
+    (u.match_id is not null) as accepted,
+    (u.match_id is null and pv.match_id is not null) as already_voted,
     count(b.id) as total_bets,
     count(b.id) filter (where b.team = 'a') as team_a_bets,
     count(b.id) filter (where b.team = 'b') as team_b_bets
-  from upserted u
-  left join public.league_bets b on b.match_id = u.match_id
-  group by u.match_id, u.team;
+  from selected_match sm
+  left join upserted u on u.match_id = sm.match_id
+  left join previous_vote pv on pv.match_id = sm.match_id
+  left join public.league_bets b on b.match_id = sm.match_id
+  group by sm.match_id, u.team, u.match_id, pv.team, pv.match_id;
 $$;
 
 alter table public.league_matches enable row level security;
@@ -217,18 +250,12 @@ using (public.is_minah_admin())
 with check (public.is_minah_admin());
 
 drop policy if exists "Anyone can read league bets for live counts" on public.league_bets;
-create policy "Anyone can read league bets for live counts"
+drop policy if exists "Admins can read league bets" on public.league_bets;
+create policy "Admins can read league bets"
 on public.league_bets
 for select
-to anon, authenticated
-using (
-  exists (
-    select 1
-    from public.league_matches
-    where league_matches.id = league_bets.match_id
-      and league_matches.status in ('scheduled', 'open', 'locked', 'settled')
-  )
-);
+to authenticated
+using (public.is_minah_admin());
 
 drop policy if exists "Admins can manage league bets" on public.league_bets;
 create policy "Admins can manage league bets"
@@ -240,10 +267,12 @@ with check (public.is_minah_admin());
 
 grant select on public.league_matches to anon, authenticated;
 grant select on public.league_betting_summary to anon, authenticated;
-grant execute on function public.cast_league_bet(text, text, text) to anon, authenticated;
+grant execute on function public.cast_league_bet(text, text, text, text) to service_role;
 
 -- Frontend usage:
 -- 1. Read current counts from public.league_betting_summary where slug = 'space-star-league-main'.
--- 2. Save/update one user's pick with:
---    select * from public.cast_league_bet('space-star-league-main', '<browser-generated-user-key>', 'a');
--- 3. For Supabase Realtime, listen to INSERT/UPDATE on public.league_bets and then refetch the summary view.
+-- 2. Save one vote per IP through a server or Supabase Edge Function.
+--    Never call public.cast_league_bet from browser JavaScript, because p_ip_hash would be spoofable.
+-- 3. The server should hash the request IP and call:
+--    select * from public.cast_league_bet('space-star-league-main', '<browser-generated-user-key>', 'a', '<server-generated-ip-hash>');
+-- 4. Refetch public.league_betting_summary after the Edge Function returns.

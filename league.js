@@ -1,5 +1,7 @@
-const STORAGE_KEY = "space-star-league-state";
-const USER_PICK_KEY = "space-star-league-user-pick";
+const STORAGE_KEY = "space-star-league-state-v2";
+const USER_PICK_KEY = "space-star-league-user-pick-v2";
+const BETTOR_KEY = "space-star-league-bettor-key-v2";
+const config = window.MINAH_SUPABASE || {};
 
 const teams = {
   a: { name: "클라스 팀", color: "blue" },
@@ -27,14 +29,20 @@ const els = {
 
 render();
 seedActivity();
+loadRemoteSummary();
 
 els.buttons.forEach((button) => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", async () => {
+    if (userPick) {
+      state.activity.unshift(makeActivity("이미 배팅했습니다. IP당 1회만 참여할 수 있습니다.", "system"));
+      state.activity = state.activity.slice(0, 7);
+      save();
+      render();
+      return;
+    }
+
     const team = button.dataset.team;
-    castBet(team, "내 배팅");
-    localStorage.setItem(USER_PICK_KEY, team);
-    userPick = team;
-    broadcast();
+    await submitBet(team);
   });
 });
 
@@ -52,13 +60,6 @@ if (channel) {
   });
 }
 
-setInterval(() => {
-  const team = Math.random() > 0.48 ? "a" : "b";
-  const labels = ["현장 관전자", "친구방 입장", "응원석", "대기실"];
-  castBet(team, labels[Math.floor(Math.random() * labels.length)]);
-  broadcast();
-}, 5200);
-
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
@@ -73,23 +74,14 @@ function loadState() {
   }
 
   return {
-    a: 34,
-    b: 27,
-    activity: [
-      makeActivity("경기장이 열렸습니다.", "system"),
-      makeActivity("초기 예측이 집계되었습니다.", "system"),
-    ],
+    a: 0,
+    b: 0,
+    activity: [makeActivity("배팅이 초기화되었습니다.", "system")],
   };
 }
 
 function castBet(team, source) {
-  if (userPick && source === "내 배팅" && userPick !== team) {
-    state[userPick] = Math.max(0, state[userPick] - 1);
-  }
-
-  if (!(source === "내 배팅" && userPick === team)) {
-    state[team] += 1;
-  }
+  state[team] += 1;
 
   const message =
     source === "내 배팅"
@@ -101,18 +93,75 @@ function castBet(team, source) {
   render();
 }
 
+async function submitBet(team) {
+  setButtonsDisabled(true);
+
+  try {
+    if (config.leagueVoteEndpoint) {
+      const response = await fetch(config.leagueVoteEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matchSlug: config.leagueMatchSlug || "space-star-league-main",
+          bettorKey: getBettorKey(),
+          team,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (payload.vote) {
+        applyServerCounts(payload.vote);
+      }
+
+      if (response.status === 409 || payload.vote?.already_voted) {
+        userPick = payload.vote?.selected_team || userPick;
+        if (userPick) localStorage.setItem(USER_PICK_KEY, userPick);
+        state.activity.unshift(makeActivity("이미 배팅했습니다. IP당 1회만 참여할 수 있습니다.", "system"));
+        state.activity = state.activity.slice(0, 7);
+        save();
+        render();
+        return;
+      }
+
+      if (!response.ok) throw new Error(payload.error || "vote_failed");
+
+      localStorage.setItem(USER_PICK_KEY, team);
+      userPick = team;
+      state.activity.unshift(makeActivity(`${teams[team].name}을 선택했습니다.`, teams[team].color));
+      state.activity = state.activity.slice(0, 7);
+      save();
+      render();
+      broadcast();
+      return;
+    }
+
+    castBet(team, "내 배팅");
+    localStorage.setItem(USER_PICK_KEY, team);
+    userPick = team;
+    broadcast();
+  } catch {
+    state.activity.unshift(makeActivity("서버 배팅 연결을 확인해주세요.", "system"));
+    state.activity = state.activity.slice(0, 7);
+    render();
+  } finally {
+    setButtonsDisabled(false);
+  }
+}
+
 function render() {
   const total = state.a + state.b;
-  const aRatio = total ? Math.round((state.a / total) * 100) : 50;
-  const bRatio = 100 - aRatio;
+  const aRatio = total ? Math.round((state.a / total) * 100) : 0;
+  const bRatio = total ? 100 - aRatio : 0;
+  const aMeter = total ? aRatio : 50;
+  const bMeter = total ? bRatio : 50;
 
   els.aCount.textContent = state.a;
   els.bCount.textContent = state.b;
   els.total.textContent = `총 ${total}표`;
   els.ratioA.textContent = aRatio;
   els.ratioB.textContent = bRatio;
-  els.meterA.style.width = `${aRatio}%`;
-  els.meterB.style.width = `${bRatio}%`;
+  els.meterA.style.width = `${aMeter}%`;
+  els.meterB.style.width = `${bMeter}%`;
 
   els.aOdds.textContent = calcOdds(total, state.a);
   els.bOdds.textContent = calcOdds(total, state.b);
@@ -132,6 +181,34 @@ function render() {
       `
     )
     .join("");
+}
+
+async function loadRemoteSummary() {
+  if (!config.url || !config.anonKey || !config.leagueSummaryView) return;
+
+  const slug = config.leagueMatchSlug || "space-star-league-main";
+  const endpoint = `${config.url}/rest/v1/${config.leagueSummaryView}?slug=eq.${encodeURIComponent(slug)}&select=*`;
+
+  try {
+    const response = await fetch(endpoint, {
+      headers: {
+        apikey: config.anonKey,
+        Authorization: `Bearer ${config.anonKey}`,
+      },
+    });
+    const rows = await response.json();
+    if (!response.ok || !rows?.[0]) return;
+    applyServerCounts(rows[0]);
+    save();
+    render();
+  } catch {
+    // Keep the local display if the remote DB has not been initialized yet.
+  }
+}
+
+function applyServerCounts(data) {
+  state.a = Number(data.team_a_bets ?? state.a);
+  state.b = Number(data.team_b_bets ?? state.b);
 }
 
 function calcOdds(total, count) {
@@ -163,4 +240,19 @@ function broadcast() {
 function seedActivity() {
   save();
   render();
+}
+
+function getBettorKey() {
+  const saved = localStorage.getItem(BETTOR_KEY);
+  if (saved) return saved;
+
+  const key = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  localStorage.setItem(BETTOR_KEY, key);
+  return key;
+}
+
+function setButtonsDisabled(disabled) {
+  els.buttons.forEach((button) => {
+    button.disabled = disabled;
+  });
 }
