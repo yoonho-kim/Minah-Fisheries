@@ -65,3 +65,185 @@ with check (public.is_minah_admin());
 
 -- After creating an Auth user for the manager, register the manager email:
 -- insert into public.admin_emails (email) values ('manager@example.com');
+
+create table if not exists public.league_matches (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique check (slug ~ '^[a-z0-9][a-z0-9-]{2,80}$'),
+  title text not null check (char_length(title) between 1 and 80),
+  team_a_name text not null check (char_length(team_a_name) between 1 and 40),
+  team_a_subtitle text check (char_length(team_a_subtitle) <= 80),
+  team_b_name text not null check (char_length(team_b_name) between 1 and 40),
+  team_b_subtitle text check (char_length(team_b_subtitle) <= 80),
+  status text not null default 'open' check (status in ('scheduled', 'open', 'locked', 'settled', 'canceled')),
+  winner_team text check (winner_team in ('a', 'b')),
+  starts_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.league_bets (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null references public.league_matches(id) on delete cascade,
+  bettor_key text not null check (char_length(bettor_key) between 8 and 120),
+  team text not null check (team in ('a', 'b')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (match_id, bettor_key)
+);
+
+create index if not exists league_bets_match_id_idx
+on public.league_bets (match_id);
+
+create index if not exists league_bets_match_team_idx
+on public.league_bets (match_id, team);
+
+insert into public.league_matches (
+  slug,
+  title,
+  team_a_name,
+  team_a_subtitle,
+  team_b_name,
+  team_b_subtitle,
+  status
+)
+values (
+  'space-star-league-main',
+  '우주 스타 리그',
+  '클라스 팀',
+  '전통강자',
+  '광모 팀',
+  '도전자 87 대표 젊은 피',
+  'open'
+)
+on conflict (slug) do update
+set
+  title = excluded.title,
+  team_a_name = excluded.team_a_name,
+  team_a_subtitle = excluded.team_a_subtitle,
+  team_b_name = excluded.team_b_name,
+  team_b_subtitle = excluded.team_b_subtitle,
+  status = excluded.status,
+  updated_at = now();
+
+create or replace view public.league_betting_summary as
+select
+  m.id as match_id,
+  m.slug,
+  m.title,
+  m.team_a_name,
+  m.team_a_subtitle,
+  m.team_b_name,
+  m.team_b_subtitle,
+  m.status,
+  count(b.id) as total_bets,
+  count(b.id) filter (where b.team = 'a') as team_a_bets,
+  count(b.id) filter (where b.team = 'b') as team_b_bets,
+  coalesce(round(count(b.id) filter (where b.team = 'a') * 100.0 / nullif(count(b.id), 0), 1), 50.0) as team_a_percent,
+  coalesce(round(count(b.id) filter (where b.team = 'b') * 100.0 / nullif(count(b.id), 0), 1), 50.0) as team_b_percent,
+  case
+    when count(b.id) filter (where b.team = 'a') = 0 then null
+    else round(count(b.id) * 1.0 / count(b.id) filter (where b.team = 'a'), 2)
+  end as team_a_odds,
+  case
+    when count(b.id) filter (where b.team = 'b') = 0 then null
+    else round(count(b.id) * 1.0 / count(b.id) filter (where b.team = 'b'), 2)
+  end as team_b_odds
+from public.league_matches m
+left join public.league_bets b on b.match_id = m.id
+group by m.id;
+
+create or replace function public.cast_league_bet(
+  p_match_slug text,
+  p_bettor_key text,
+  p_team text
+)
+returns table (
+  match_id uuid,
+  selected_team text,
+  total_bets bigint,
+  team_a_bets bigint,
+  team_b_bets bigint
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with target_match as (
+    select id
+    from public.league_matches
+    where slug = p_match_slug
+      and status = 'open'
+    limit 1
+  ),
+  upserted as (
+    insert into public.league_bets as lb (match_id, bettor_key, team)
+    select id, trim(p_bettor_key), p_team
+    from target_match
+    where p_team in ('a', 'b')
+      and char_length(trim(p_bettor_key)) between 8 and 120
+    on conflict (match_id, bettor_key) do update
+    set
+      team = excluded.team,
+      updated_at = now()
+    returning lb.match_id, lb.team
+  )
+  select
+    u.match_id,
+    u.team as selected_team,
+    count(b.id) as total_bets,
+    count(b.id) filter (where b.team = 'a') as team_a_bets,
+    count(b.id) filter (where b.team = 'b') as team_b_bets
+  from upserted u
+  left join public.league_bets b on b.match_id = u.match_id
+  group by u.match_id, u.team;
+$$;
+
+alter table public.league_matches enable row level security;
+alter table public.league_bets enable row level security;
+
+drop policy if exists "Anyone can read league matches" on public.league_matches;
+create policy "Anyone can read league matches"
+on public.league_matches
+for select
+to anon, authenticated
+using (status in ('scheduled', 'open', 'locked', 'settled'));
+
+drop policy if exists "Admins can manage league matches" on public.league_matches;
+create policy "Admins can manage league matches"
+on public.league_matches
+for all
+to authenticated
+using (public.is_minah_admin())
+with check (public.is_minah_admin());
+
+drop policy if exists "Anyone can read league bets for live counts" on public.league_bets;
+create policy "Anyone can read league bets for live counts"
+on public.league_bets
+for select
+to anon, authenticated
+using (
+  exists (
+    select 1
+    from public.league_matches
+    where league_matches.id = league_bets.match_id
+      and league_matches.status in ('scheduled', 'open', 'locked', 'settled')
+  )
+);
+
+drop policy if exists "Admins can manage league bets" on public.league_bets;
+create policy "Admins can manage league bets"
+on public.league_bets
+for all
+to authenticated
+using (public.is_minah_admin())
+with check (public.is_minah_admin());
+
+grant select on public.league_matches to anon, authenticated;
+grant select on public.league_betting_summary to anon, authenticated;
+grant execute on function public.cast_league_bet(text, text, text) to anon, authenticated;
+
+-- Frontend usage:
+-- 1. Read current counts from public.league_betting_summary where slug = 'space-star-league-main'.
+-- 2. Save/update one user's pick with:
+--    select * from public.cast_league_bet('space-star-league-main', '<browser-generated-user-key>', 'a');
+-- 3. For Supabase Realtime, listen to INSERT/UPDATE on public.league_bets and then refetch the summary view.
