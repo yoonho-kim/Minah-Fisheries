@@ -1,0 +1,5 @@
+[functions.cast-league-bet]
+verify_jwt = false
+
+[functions.post-league-comment]
+verify_jwt = false

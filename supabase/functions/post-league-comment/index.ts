@@ -1,20 +1,23 @@
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type VoteBody = {
+type CommentBody = {
   matchSlug?: string;
-  bettorKey?: string;
-  team?: "a" | "b";
-  amount?: number;
+  commenterKey?: string;
+  body?: string;
 };
 
 Deno.serve(async (request) => {
   try {
     if (request.method === "OPTIONS") {
       return json({ ok: true });
+    }
+
+    if (request.method !== "POST") {
+      return json({ error: "method_not_allowed" }, 405);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -40,65 +43,35 @@ Deno.serve(async (request) => {
       return json({ error: "ip_not_found" }, 400);
     }
 
+    const body = (await request.json().catch(() => ({}))) as CommentBody;
+    const comment = body.body?.trim() || "";
+
+    if (!comment || comment.length > 120) {
+      return json({ error: "invalid_comment" }, 400);
+    }
+
     const ipHash = await sha256(`${salt}:${ip}`);
-
-    if (request.method === "GET") {
-      const wallet = await callRpc(supabaseUrl, serviceRoleKey, "get_league_wallet", {
-        p_ip_hash: ipHash,
-      });
-
-      if (!wallet.ok) {
-        return json({ error: "rpc_failed", status: wallet.status, details: wallet.payload }, 500);
-      }
-
-      const result = Array.isArray(wallet.payload) ? wallet.payload[0] : wallet.payload;
-      return json({ diamonds: Number(result?.diamonds ?? 10) });
-    }
-
-    if (request.method !== "POST") {
-      return json({ error: "method_not_allowed" }, 405);
-    }
-
-    const body = (await request.json().catch(() => ({}))) as VoteBody;
-    const team = body.team;
-
-    if (team !== "a" && team !== "b") {
-      return json({ error: "invalid_team" }, 400);
-    }
-
-    const bettorKey = normalizeBettorKey(body.bettorKey);
-    const matchSlug = body.matchSlug || "space-star-league-main";
-    const amount = normalizeAmount(body.amount);
-
-    const vote = await callRpc(supabaseUrl, serviceRoleKey, "cast_league_bet", {
-      p_match_slug: matchSlug,
-      p_bettor_key: bettorKey,
-      p_team: team,
+    const rpc = await callRpc(supabaseUrl, serviceRoleKey, "post_league_comment", {
+      p_match_slug: body.matchSlug || "space-star-league-main",
+      p_commenter_key: normalizeCommenterKey(body.commenterKey),
+      p_body: comment,
       p_ip_hash: ipHash,
-      p_amount: amount,
     });
 
-    if (!vote.ok) {
-      return json(
-        {
-          error: "rpc_failed",
-          status: vote.status,
-          details: vote.payload,
-        },
-        500,
-      );
+    if (!rpc.ok) {
+      return json({ error: "rpc_failed", status: rpc.status, details: rpc.payload }, 500);
     }
 
-    const result = Array.isArray(vote.payload) ? vote.payload[0] : vote.payload;
+    const result = Array.isArray(rpc.payload) ? rpc.payload[0] : rpc.payload;
     if (!result) {
-      return json({ error: "voting_closed" }, 409);
+      return json({ error: "comment_failed" }, 500);
     }
 
     if (result.error_code === "insufficient_diamonds") {
-      return json({ error: "insufficient_diamonds", vote: result }, 402);
+      return json({ error: "insufficient_diamonds", comment: result }, 402);
     }
 
-    return json({ vote: result }, result.accepted ? 200 : 409);
+    return json({ comment: result });
   } catch (error) {
     return json(
       {
@@ -121,16 +94,10 @@ function getRequestIp(request: Request) {
   );
 }
 
-function normalizeBettorKey(value?: string) {
+function normalizeCommenterKey(value?: string) {
   const trimmed = value?.trim();
   if (trimmed && trimmed.length >= 8 && trimmed.length <= 120) return trimmed;
   return crypto.randomUUID();
-}
-
-function normalizeAmount(value?: number) {
-  const amount = Number(value);
-  if (!Number.isFinite(amount)) return 1;
-  return Math.max(1, Math.min(1000, Math.floor(amount)));
 }
 
 async function callRpc(supabaseUrl: string, serviceRoleKey: string, name: string, payload: Record<string, unknown>) {

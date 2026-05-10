@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>우주 스타 리그 관리자</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="admin-shell">
+      <section class="admin-panel" aria-labelledby="admin-title">
+        <a class="admin-back" href="index.html">← 경기 화면</a>
+        <header class="admin-header">
+          <p>USL ADMIN</p>
+          <h1 id="admin-title">경기 설정</h1>
+          <span id="admin-summary">불러오는 중</span>
+        </header>
+
+        <form class="admin-form" id="match-form">
+          <label>
+            <span>대결 이름</span>
+            <input id="match-title" name="title" maxlength="80" required />
+          </label>
+          <label>
+            <span>A팀 이름</span>
+            <input id="team-a-name-input" name="teamAName" maxlength="40" required />
+          </label>
+          <label>
+            <span>A팀 서브멘트</span>
+            <input id="team-a-subtitle-input" name="teamASubtitle" maxlength="80" />
+          </label>
+          <label>
+            <span>B팀 이름</span>
+            <input id="team-b-name-input" name="teamBName" maxlength="40" required />
+          </label>
+          <label>
+            <span>B팀 서브멘트</span>
+            <input id="team-b-subtitle-input" name="teamBSubtitle" maxlength="80" />
+          </label>
+          <label>
+            <span>마감시간</span>
+            <select id="close-minutes" name="closeMinutes">
+              <option value="">변경 안 함</option>
+              <option value="5">5분</option>
+              <option value="10">10분</option>
+              <option value="30">30분</option>
+              <option value="60">1시간</option>
+              <option value="120">2시간</option>
+              <option value="1440">1일</option>
+            </select>
+          </label>
+          <p class="form-help">설정 저장만으로 투표는 시작되지 않습니다. 시작 버튼을 누른 시점부터 카운트다운이 시작됩니다.</p>
+          <button class="primary-button" type="submit">설정 저장</button>
+        </form>
+
+        <section class="admin-actions-panel" aria-label="경기 진행 제어">
+          <button class="primary-button" id="start-match" type="button">투표 시작</button>
+          <button class="ghost-button" id="end-match" type="button">투표 종료</button>
+        </section>
+
+        <section class="admin-actions-panel settle-panel" aria-label="승자 정산">
+          <label>
+            <span>승자 선택</span>
+            <select id="winner-team">
+              <option value="a">A팀 승리</option>
+              <option value="b">B팀 승리</option>
+            </select>
+          </label>
+          <button class="primary-button" id="settle-match" type="button">승자 정산</button>
+        </section>
+
+        <section class="danger-zone" aria-label="배팅 초기화">
+          <div>
+            <h2>배팅 초기화</h2>
+            <p>현재 경기의 모든 배팅 기록을 삭제하고 투표 수를 0으로 되돌립니다.</p>
+          </div>
+          <button class="danger-button" id="reset-bets" type="button">모든 배팅 초기화</button>
+        </section>
+
+        <p class="admin-status" id="admin-status" role="status"></p>
+      </section>
+    </main>
+
+    <script src="supabase-config.js"></script>
+    <script src="league-admin.js?v=db-source-1"></script>
+  </body>
+</html>

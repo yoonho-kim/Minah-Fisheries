@@ -77,9 +77,17 @@ create table if not exists public.league_matches (
   status text not null default 'open' check (status in ('scheduled', 'open', 'locked', 'settled', 'canceled')),
   winner_team text check (winner_team in ('a', 'b')),
   starts_at timestamptz,
+  closes_at timestamptz,
+  close_minutes integer default 10 check (close_minutes in (5, 10, 30, 60, 120, 1440)),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.league_matches
+add column if not exists closes_at timestamptz;
+
+alter table public.league_matches
+add column if not exists close_minutes integer default 10 check (close_minutes in (5, 10, 30, 60, 120, 1440));
 
 create table if not exists public.league_bets (
   id uuid primary key default gen_random_uuid(),
@@ -87,6 +95,7 @@ create table if not exists public.league_bets (
   bettor_key text not null check (char_length(bettor_key) between 8 and 120),
   ip_hash text check (char_length(ip_hash) between 32 and 128),
   team text not null check (team in ('a', 'b')),
+  amount integer not null default 1 check (amount between 1 and 1000),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -95,11 +104,12 @@ alter table public.league_bets
 add column if not exists ip_hash text check (char_length(ip_hash) between 32 and 128);
 
 alter table public.league_bets
+add column if not exists amount integer not null default 1 check (amount between 1 and 1000);
+
+alter table public.league_bets
 drop constraint if exists league_bets_match_id_bettor_key_key;
 
-create unique index if not exists league_bets_match_ip_hash_uidx
-on public.league_bets (match_id, ip_hash)
-where ip_hash is not null;
+drop index if exists league_bets_match_ip_hash_uidx;
 
 create index if not exists league_bets_match_bettor_key_idx
 on public.league_bets (match_id, bettor_key);
@@ -110,6 +120,24 @@ on public.league_bets (match_id);
 create index if not exists league_bets_match_team_idx
 on public.league_bets (match_id, team);
 
+create table if not exists public.league_comments (
+  id uuid primary key default gen_random_uuid(),
+  match_slug text not null check (match_slug ~ '^[a-z0-9][a-z0-9-]{2,80}$'),
+  commenter_key text not null check (char_length(commenter_key) between 8 and 120),
+  body text not null check (char_length(body) between 1 and 120),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists league_comments_match_created_idx
+on public.league_comments (match_slug, created_at desc);
+
+create table if not exists public.league_wallets (
+  ip_hash text primary key check (char_length(ip_hash) between 32 and 128),
+  diamonds integer not null default 10 check (diamonds >= 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 insert into public.league_matches (
   slug,
   title,
@@ -117,7 +145,8 @@ insert into public.league_matches (
   team_a_subtitle,
   team_b_name,
   team_b_subtitle,
-  status
+  status,
+  close_minutes
 )
 values (
   'space-star-league-main',
@@ -126,16 +155,16 @@ values (
   '전통강자',
   '광모 팀',
   '도전자 87 대표 젊은 피',
-  'open'
+  'scheduled',
+  10
 )
 on conflict (slug) do update
 set
-  title = excluded.title,
-  team_a_name = excluded.team_a_name,
-  team_a_subtitle = excluded.team_a_subtitle,
-  team_b_name = excluded.team_b_name,
-  team_b_subtitle = excluded.team_b_subtitle,
-  status = excluded.status,
+  title = public.league_matches.title,
+  team_a_name = public.league_matches.team_a_name,
+  team_a_subtitle = public.league_matches.team_a_subtitle,
+  team_b_name = public.league_matches.team_b_name,
+  team_b_subtitle = public.league_matches.team_b_subtitle,
   updated_at = now();
 
 create or replace view public.league_betting_summary as
@@ -148,30 +177,35 @@ select
   m.team_b_name,
   m.team_b_subtitle,
   m.status,
-  count(b.id) as total_bets,
-  count(b.id) filter (where b.team = 'a') as team_a_bets,
-  count(b.id) filter (where b.team = 'b') as team_b_bets,
-  coalesce(round(count(b.id) filter (where b.team = 'a') * 100.0 / nullif(count(b.id), 0), 1), 0.0) as team_a_percent,
-  coalesce(round(count(b.id) filter (where b.team = 'b') * 100.0 / nullif(count(b.id), 0), 1), 0.0) as team_b_percent,
+  coalesce(sum(b.amount), 0)::bigint as total_bets,
+  coalesce(sum(b.amount) filter (where b.team = 'a'), 0)::bigint as team_a_bets,
+  coalesce(sum(b.amount) filter (where b.team = 'b'), 0)::bigint as team_b_bets,
+  coalesce(round(coalesce(sum(b.amount) filter (where b.team = 'a'), 0) * 100.0 / nullif(sum(b.amount), 0), 1), 0.0) as team_a_percent,
+  coalesce(round(coalesce(sum(b.amount) filter (where b.team = 'b'), 0) * 100.0 / nullif(sum(b.amount), 0), 1), 0.0) as team_b_percent,
   case
-    when count(b.id) filter (where b.team = 'a') = 0 then null
-    else round(count(b.id) * 1.0 / count(b.id) filter (where b.team = 'a'), 2)
+    when coalesce(sum(b.amount) filter (where b.team = 'a'), 0) = 0 then null
+    else round(sum(b.amount) * 1.0 / sum(b.amount) filter (where b.team = 'a'), 2)
   end as team_a_odds,
   case
-    when count(b.id) filter (where b.team = 'b') = 0 then null
-    else round(count(b.id) * 1.0 / count(b.id) filter (where b.team = 'b'), 2)
-  end as team_b_odds
+    when coalesce(sum(b.amount) filter (where b.team = 'b'), 0) = 0 then null
+    else round(sum(b.amount) * 1.0 / sum(b.amount) filter (where b.team = 'b'), 2)
+  end as team_b_odds,
+  m.closes_at,
+  (m.status <> 'open' or (m.closes_at is not null and m.closes_at <= now())) as is_closed,
+  m.close_minutes
 from public.league_matches m
 left join public.league_bets b on b.match_id = m.id
 group by m.id;
 
 drop function if exists public.cast_league_bet(text, text, text);
+drop function if exists public.cast_league_bet(text, text, text, text);
 
 create or replace function public.cast_league_bet(
   p_match_slug text,
   p_bettor_key text,
   p_team text,
-  p_ip_hash text
+  p_ip_hash text,
+  p_amount integer
 )
 returns table (
   match_id uuid,
@@ -180,59 +214,178 @@ returns table (
   already_voted boolean,
   total_bets bigint,
   team_a_bets bigint,
-  team_b_bets bigint
+  team_b_bets bigint,
+  diamond_balance integer,
+  error_code text
 )
-language sql
+language plpgsql
 security definer
 set search_path = public
 as $$
-  with target_match as (
-    select id
-    from public.league_matches
-    where slug = p_match_slug
-      and status = 'open'
-    limit 1
-  ),
-  upserted as (
-    insert into public.league_bets as lb (match_id, bettor_key, ip_hash, team)
-    select id, trim(p_bettor_key), trim(p_ip_hash), p_team
-    from target_match
-    where p_team in ('a', 'b')
-      and char_length(trim(p_bettor_key)) between 8 and 120
-      and char_length(trim(p_ip_hash)) between 32 and 128
-    on conflict (match_id, ip_hash) where ip_hash is not null do nothing
-    returning lb.match_id, lb.team
-  ),
-  selected_match as (
-    select id as match_id from target_match
-    union
-    select match_id from upserted
-    limit 1
-  ),
-  previous_vote as (
-    select b.match_id, b.team
+declare
+  v_match_id uuid;
+  v_amount integer := least(greatest(coalesce(p_amount, 1), 1), 1000);
+  v_balance integer;
+begin
+  if p_team not in ('a', 'b')
+    or char_length(trim(p_bettor_key)) not between 8 and 120
+    or char_length(trim(p_ip_hash)) not between 32 and 128 then
+    return;
+  end if;
+
+  insert into public.league_wallets (ip_hash, diamonds)
+  values (trim(p_ip_hash), 10)
+  on conflict (ip_hash) do nothing;
+
+  select lm.id into v_match_id
+  from public.league_matches lm
+  where lm.slug = p_match_slug
+    and lm.status = 'open'
+    and (lm.closes_at is null or lm.closes_at > now())
+  limit 1;
+
+  if v_match_id is null then
+    select lw.diamonds into v_balance
+    from public.league_wallets lw
+    where lw.ip_hash = trim(p_ip_hash);
+    return;
+  end if;
+
+  update public.league_wallets lw
+  set diamonds = lw.diamonds - v_amount,
+      updated_at = now()
+  where lw.ip_hash = trim(p_ip_hash)
+    and lw.diamonds >= v_amount
+  returning lw.diamonds into v_balance;
+
+  if v_balance is null then
+    select lw.diamonds into v_balance
+    from public.league_wallets lw
+    where lw.ip_hash = trim(p_ip_hash);
+
+    return query
+    select
+      v_match_id,
+      null::text,
+      false,
+      false,
+      coalesce(sum(b.amount), 0)::bigint,
+      coalesce(sum(b.amount) filter (where b.team = 'a'), 0)::bigint,
+      coalesce(sum(b.amount) filter (where b.team = 'b'), 0)::bigint,
+      v_balance,
+      'insufficient_diamonds'::text
     from public.league_bets b
-    join selected_match sm on sm.match_id = b.match_id
-    where b.ip_hash = trim(p_ip_hash)
-    limit 1
-  )
+    where b.match_id = v_match_id;
+    return;
+  end if;
+
+  insert into public.league_bets (match_id, bettor_key, ip_hash, team, amount)
+  values (v_match_id, trim(p_bettor_key), trim(p_ip_hash), p_team, v_amount);
+
+  return query
   select
-    sm.match_id,
-    coalesce(u.team, pv.team) as selected_team,
-    (u.match_id is not null) as accepted,
-    (u.match_id is null and pv.match_id is not null) as already_voted,
-    count(b.id) as total_bets,
-    count(b.id) filter (where b.team = 'a') as team_a_bets,
-    count(b.id) filter (where b.team = 'b') as team_b_bets
-  from selected_match sm
-  left join upserted u on u.match_id = sm.match_id
-  left join previous_vote pv on pv.match_id = sm.match_id
-  left join public.league_bets b on b.match_id = sm.match_id
-  group by sm.match_id, u.team, u.match_id, pv.team, pv.match_id;
+    v_match_id,
+    p_team,
+    true,
+    false,
+    coalesce(sum(b.amount), 0)::bigint,
+    coalesce(sum(b.amount) filter (where b.team = 'a'), 0)::bigint,
+    coalesce(sum(b.amount) filter (where b.team = 'b'), 0)::bigint,
+    v_balance,
+    null::text
+  from public.league_bets b
+  where b.match_id = v_match_id;
+end;
+$$;
+
+create or replace function public.get_league_wallet(
+  p_ip_hash text
+)
+returns table (
+  diamonds integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if char_length(trim(p_ip_hash)) not between 32 and 128 then
+    return;
+  end if;
+
+  insert into public.league_wallets (ip_hash, diamonds)
+  values (trim(p_ip_hash), 10)
+  on conflict (ip_hash) do nothing;
+
+  return query
+  select lw.diamonds
+  from public.league_wallets lw
+  where lw.ip_hash = trim(p_ip_hash);
+end;
+$$;
+
+create or replace function public.post_league_comment(
+  p_match_slug text,
+  p_commenter_key text,
+  p_body text,
+  p_ip_hash text
+)
+returns table (
+  accepted boolean,
+  error_code text,
+  diamond_balance integer,
+  body text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_balance integer;
+  v_body text := trim(p_body);
+  v_created_at timestamptz;
+begin
+  if char_length(trim(p_ip_hash)) not between 32 and 128
+    or char_length(trim(p_commenter_key)) not between 8 and 120
+    or char_length(v_body) not between 1 and 120 then
+    return;
+  end if;
+
+  insert into public.league_wallets (ip_hash, diamonds)
+  values (trim(p_ip_hash), 10)
+  on conflict (ip_hash) do nothing;
+
+  update public.league_wallets lw
+  set diamonds = lw.diamonds - 1,
+      updated_at = now()
+  where lw.ip_hash = trim(p_ip_hash)
+    and lw.diamonds >= 1
+  returning lw.diamonds into v_balance;
+
+  if v_balance is null then
+    select lw.diamonds into v_balance
+    from public.league_wallets lw
+    where lw.ip_hash = trim(p_ip_hash);
+
+    return query
+    select false, 'insufficient_diamonds'::text, v_balance, null::text, null::timestamptz;
+    return;
+  end if;
+
+  insert into public.league_comments (match_slug, commenter_key, body)
+  values (p_match_slug, trim(p_commenter_key), v_body)
+  returning public.league_comments.created_at into v_created_at;
+
+  return query
+  select true, null::text, v_balance, v_body, v_created_at;
+end;
 $$;
 
 alter table public.league_matches enable row level security;
 alter table public.league_bets enable row level security;
+alter table public.league_comments enable row level security;
+alter table public.league_wallets enable row level security;
 
 drop policy if exists "Anyone can read league matches" on public.league_matches;
 create policy "Anyone can read league matches"
@@ -265,9 +418,274 @@ to authenticated
 using (public.is_minah_admin())
 with check (public.is_minah_admin());
 
+drop policy if exists "Admins can read league wallets" on public.league_wallets;
+create policy "Admins can read league wallets"
+on public.league_wallets
+for select
+to authenticated
+using (public.is_minah_admin());
+
+drop policy if exists "Anyone can read league comments" on public.league_comments;
+create policy "Anyone can read league comments"
+on public.league_comments
+for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "Anyone can create league comments" on public.league_comments;
+
 grant select on public.league_matches to anon, authenticated;
 grant select on public.league_betting_summary to anon, authenticated;
-grant execute on function public.cast_league_bet(text, text, text, text) to service_role;
+grant select on public.league_comments to anon, authenticated;
+revoke insert on public.league_comments from anon, authenticated;
+grant execute on function public.cast_league_bet(text, text, text, text, integer) to service_role;
+grant execute on function public.get_league_wallet(text) to service_role;
+grant execute on function public.post_league_comment(text, text, text, text) to service_role;
+
+drop function if exists public.admin_update_league_match(text, text, text, text, text);
+
+create or replace function public.admin_update_league_match(
+  p_admin_password text,
+  p_match_slug text,
+  p_title text,
+  p_team_a_name text,
+  p_team_a_subtitle text,
+  p_team_b_name text,
+  p_team_b_subtitle text,
+  p_close_minutes integer
+)
+returns setof public.league_betting_summary
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_admin_password <> '1234qwer' then
+    raise exception 'invalid_admin_password';
+  end if;
+
+  update public.league_matches
+  set
+    title = trim(p_title),
+    team_a_name = trim(p_team_a_name),
+    team_a_subtitle = nullif(trim(p_team_a_subtitle), ''),
+    team_b_name = trim(p_team_b_name),
+    team_b_subtitle = nullif(trim(p_team_b_subtitle), ''),
+    close_minutes = coalesce(p_close_minutes, close_minutes),
+    closes_at = null,
+    status = 'scheduled',
+    updated_at = now()
+  where slug = p_match_slug
+    and char_length(trim(p_title)) between 1 and 80
+    and char_length(trim(p_team_a_name)) between 1 and 40
+    and char_length(trim(p_team_b_name)) between 1 and 40
+    and coalesce(char_length(trim(p_team_a_subtitle)), 0) <= 80
+    and coalesce(char_length(trim(p_team_b_subtitle)), 0) <= 80
+    and (p_close_minutes is null or p_close_minutes in (5, 10, 30, 60, 120, 1440));
+
+  return query
+  select *
+  from public.league_betting_summary
+  where slug = p_match_slug;
+end;
+$$;
+
+create or replace function public.admin_reset_league_bets(
+  p_admin_password text,
+  p_match_slug text
+)
+returns setof public.league_betting_summary
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match_id uuid;
+begin
+  if p_admin_password <> '1234qwer' then
+    raise exception 'invalid_admin_password';
+  end if;
+
+  select id into v_match_id
+  from public.league_matches
+  where slug = p_match_slug
+  limit 1;
+
+  delete from public.league_bets
+  where match_id = v_match_id;
+
+  delete from public.league_comments
+  where match_slug = p_match_slug;
+
+  update public.league_matches
+  set
+    winner_team = null,
+    status = 'scheduled',
+    closes_at = null,
+    updated_at = now()
+  where id = v_match_id;
+
+  return query
+  select *
+  from public.league_betting_summary
+  where slug = p_match_slug;
+end;
+$$;
+
+create or replace function public.admin_start_league_match(
+  p_admin_password text,
+  p_match_slug text
+)
+returns setof public.league_betting_summary
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match_id uuid;
+begin
+  if p_admin_password <> '1234qwer' then
+    raise exception 'invalid_admin_password';
+  end if;
+
+  select id into v_match_id
+  from public.league_matches
+  where slug = p_match_slug
+  limit 1;
+
+  delete from public.league_bets
+  where match_id = v_match_id;
+
+  delete from public.league_comments
+  where match_slug = p_match_slug;
+
+  update public.league_matches
+  set
+    status = 'open',
+    winner_team = null,
+    starts_at = now(),
+    closes_at = now() + make_interval(mins => coalesce(close_minutes, 10)),
+    updated_at = now()
+  where slug = p_match_slug;
+
+  return query
+  select *
+  from public.league_betting_summary
+  where slug = p_match_slug;
+end;
+$$;
+
+create or replace function public.admin_end_league_match(
+  p_admin_password text,
+  p_match_slug text
+)
+returns setof public.league_betting_summary
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_admin_password <> '1234qwer' then
+    raise exception 'invalid_admin_password';
+  end if;
+
+  update public.league_matches
+  set
+    status = 'locked',
+    closes_at = coalesce(closes_at, now()),
+    updated_at = now()
+  where slug = p_match_slug;
+
+  return query
+  select *
+  from public.league_betting_summary
+  where slug = p_match_slug;
+end;
+$$;
+
+create or replace function public.admin_settle_league_match(
+  p_admin_password text,
+  p_match_slug text,
+  p_winner_team text
+)
+returns setof public.league_betting_summary
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match_id uuid;
+  v_status text;
+  v_total_amount numeric;
+  v_winner_amount numeric;
+begin
+  if p_admin_password <> '1234qwer' then
+    raise exception 'invalid_admin_password';
+  end if;
+
+  if p_winner_team not in ('a', 'b') then
+    raise exception 'invalid_winner_team';
+  end if;
+
+  select lm.id, lm.status into v_match_id, v_status
+  from public.league_matches lm
+  where lm.slug = p_match_slug
+  limit 1;
+
+  if v_match_id is null then
+    raise exception 'match_not_found';
+  end if;
+
+  if v_status = 'settled' then
+    return query
+    select *
+    from public.league_betting_summary
+    where slug = p_match_slug;
+    return;
+  end if;
+
+  select
+    coalesce(sum(lb.amount), 0),
+    coalesce(sum(lb.amount) filter (where lb.team = p_winner_team), 0)
+  into v_total_amount, v_winner_amount
+  from public.league_bets lb
+  where lb.match_id = v_match_id;
+
+  if v_winner_amount > 0 then
+    insert into public.league_wallets (ip_hash, diamonds)
+    select
+      lb.ip_hash,
+      round(sum(lb.amount) * v_total_amount / v_winner_amount)::integer
+    from public.league_bets lb
+    where lb.match_id = v_match_id
+      and lb.team = p_winner_team
+      and lb.ip_hash is not null
+    group by lb.ip_hash
+    on conflict (ip_hash) do update
+    set diamonds = public.league_wallets.diamonds + excluded.diamonds,
+        updated_at = now();
+  end if;
+
+  update public.league_matches
+  set
+    status = 'settled',
+    winner_team = p_winner_team,
+    closes_at = coalesce(closes_at, now()),
+    updated_at = now()
+  where id = v_match_id;
+
+  return query
+  select *
+  from public.league_betting_summary
+  where slug = p_match_slug;
+end;
+$$;
+
+grant execute on function public.admin_update_league_match(text, text, text, text, text, text, text, integer) to anon, authenticated;
+grant execute on function public.admin_reset_league_bets(text, text) to anon, authenticated;
+grant execute on function public.admin_start_league_match(text, text) to anon, authenticated;
+grant execute on function public.admin_end_league_match(text, text) to anon, authenticated;
+grant execute on function public.admin_settle_league_match(text, text, text) to anon, authenticated;
 
 -- Frontend usage:
 -- 1. Read current counts from public.league_betting_summary where slug = 'space-star-league-main'.

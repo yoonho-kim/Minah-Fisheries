@@ -13,84 +13,140 @@
   </head>
   <body>
     <main class="league-shell">
-      <section class="arena" aria-labelledby="page-title">
-        <header class="topbar">
-          <a class="brand" href="/" aria-label="우주 스타 리그 홈">
-            <span class="brand-mark" aria-hidden="true"></span>
-            <span>
-              <strong>우주 스타 리그</strong>
-              <em>FRIENDS MATCH BET</em>
-            </span>
-          </a>
-          <div class="live-pill" aria-label="라이브 진행 중">
-            <span aria-hidden="true"></span>
-            LIVE
-          </div>
-        </header>
+      <section class="phone-frame" aria-labelledby="page-title">
+        <div class="phone-screen">
+          <div class="sensor" aria-hidden="true"></div>
+          <h1 class="sr-only" id="page-title">우주 스타 리그: 클라스 팀 VS 광모 팀</h1>
 
-        <div class="match-stage">
-          <article class="team-card team-card-a" aria-labelledby="team-a-name">
-            <p class="team-label">A SIDE</p>
-            <h2 id="team-a-name">클라스 팀</h2>
-            <p class="team-tag">전통강자</p>
-            <dl class="team-stats">
-              <div>
-                <dt>배팅</dt>
-                <dd><span id="team-a-count">0</span>표</dd>
-              </div>
-              <div>
-                <dt>예상 배당</dt>
-                <dd id="team-a-odds">1.00</dd>
-              </div>
-            </dl>
-            <button class="bet-button bet-a" type="button" data-team="a">클라스 팀에 배팅</button>
-          </article>
-
-          <div class="versus-panel" aria-label="현재 대결 정보">
-            <p class="event-kicker">ONE NIGHT DUEL</p>
-            <h1 id="page-title">A <span>VS</span> B</h1>
-            <div class="ratio-board">
-              <span id="ratio-a">50</span>
-              <strong>:</strong>
-              <span id="ratio-b">50</span>
+          <header class="statusbar" aria-label="앱 상태">
+            <time>9:41</time>
+            <div class="status-icons" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
-            <p class="ratio-label">실시간 배팅 비율</p>
+          </header>
+
+          <header class="topbar">
+            <a class="brand" href="/" aria-label="우주 스타 리그 홈">
+              <span class="brand-mark" aria-hidden="true">USL</span>
+              <span>
+                <em>Tonight Match</em>
+                <strong>우주 스타 리그</strong>
+              </span>
+            </a>
+            <div class="top-actions" aria-label="경기 상태">
+              <div class="diamond-pill" aria-label="보유 다이아">
+                <span aria-hidden="true">💎</span>
+                <strong id="diamond-count">10</strong>
+              </div>
+              <button class="live-pill" id="admin-trigger" type="button" aria-label="관리자 접근">
+                <span class="live-dot" aria-hidden="true"></span>
+                <strong id="deadline-label">LIVE</strong>
+              </button>
+            </div>
+          </header>
+
+          <section class="score-panel" aria-label="현재 배팅 스코어">
+            <div>
+              <p>전체투표건수</p>
+              <output id="total-count" aria-live="polite">0</output>
+            </div>
+            <div class="match-progress">
+              <strong><span id="ratio-a">0</span> / <span id="ratio-b">0</span></strong>
+              <span>pick ratio</span>
+            </div>
+          </section>
+
+          <section class="diamond-bet-panel" aria-label="다이아 배팅 설정">
+            <label for="bet-amount">배팅 다이아</label>
+            <div>
+              <input id="bet-amount" type="number" min="1" max="1000" step="1" value="1" inputmode="numeric" />
+              <span>DIA</span>
+            </div>
+          </section>
+
+          <section class="challenge-grid" aria-label="팀 선택">
+            <article class="team-card team-card-a" aria-labelledby="team-a-name">
+              <div class="card-visual" aria-hidden="true"></div>
+              <div class="card-arrow" aria-hidden="true">↗</div>
+              <p class="team-label">CLASS CHALLENGE</p>
+              <h2 id="team-a-name">클라스 팀</h2>
+              <p class="team-tag" id="team-a-subtitle">전통강자</p>
+              <dl class="team-stats">
+                <div>
+                  <dt>배당</dt>
+                  <dd id="team-a-odds">대기</dd>
+                </div>
+              </dl>
+              <p class="closed-stat" id="team-a-final" hidden>0표 · 0%</p>
+              <button class="bet-button bet-a" type="button" data-team="a">클라스 선택</button>
+            </article>
+
+            <article class="team-card team-card-b" aria-labelledby="team-b-name">
+              <div class="card-visual" aria-hidden="true"></div>
+              <div class="card-arrow" aria-hidden="true">↗</div>
+              <p class="team-label">GWANGMO CHALLENGE</p>
+              <h2 id="team-b-name">광모 팀</h2>
+              <p class="team-tag" id="team-b-subtitle">도전자 87 대표 젊은 피</p>
+              <dl class="team-stats">
+                <div>
+                  <dt>배당</dt>
+                  <dd id="team-b-odds">대기</dd>
+                </div>
+              </dl>
+              <p class="closed-stat" id="team-b-final" hidden>0표 · 0%</p>
+              <button class="bet-button bet-b" type="button" data-team="b">광모 선택</button>
+            </article>
+          </section>
+
+          <section class="versus-panel" aria-label="실시간 배팅 비율">
+            <div class="versus-head">
+              <p class="event-kicker">LIVE ODDS</p>
+              <p class="user-pick" id="user-pick">아직 배팅하지 않았습니다.</p>
+            </div>
             <div class="meter" aria-hidden="true">
               <span id="meter-a"></span>
               <span id="meter-b"></span>
             </div>
-            <p class="user-pick" id="user-pick">아직 배팅하지 않았습니다.</p>
-          </div>
-
-          <article class="team-card team-card-b" aria-labelledby="team-b-name">
-            <p class="team-label">B SIDE</p>
-            <h2 id="team-b-name">광모 팀</h2>
-            <p class="team-tag">도전자 87 대표 젊은 피</p>
-            <dl class="team-stats">
-              <div>
-                <dt>배팅</dt>
-                <dd><span id="team-b-count">0</span>표</dd>
-              </div>
-              <div>
-                <dt>예상 배당</dt>
-                <dd id="team-b-odds">1.00</dd>
-              </div>
-            </dl>
-            <button class="bet-button bet-b" type="button" data-team="b">광모 팀에 배팅</button>
-          </article>
-        </div>
-
-        <section class="live-board" aria-label="실시간 배팅 현황">
-          <div class="board-head">
-            <div>
-              <p>LIVE BOARD</p>
-              <h2>배팅 현황</h2>
+            <div class="team-strip">
+              <span>클라스 팀</span>
+              <strong>VS</strong>
+              <span>광모 팀</span>
             </div>
-            <output id="total-count" aria-live="polite">총 0표</output>
-          </div>
-          <ol class="activity-list" id="activity-list" aria-live="polite"></ol>
-        </section>
+          </section>
+
+          <section class="live-board" aria-label="실시간 댓글">
+            <div class="board-head">
+              <div>
+                <p>Comments</p>
+                <h2>최신 댓글 3개</h2>
+              </div>
+              <span>Live</span>
+            </div>
+            <form class="comment-form" id="comment-form">
+              <input id="comment-input" type="text" maxlength="120" placeholder="댓글을 남겨주세요" required />
+              <button type="submit">등록</button>
+            </form>
+            <ol class="activity-list" id="activity-list" aria-live="polite"></ol>
+          </section>
+        </div>
       </section>
+
+      <dialog class="password-dialog" id="password-dialog">
+        <form method="dialog" class="password-box" id="password-form">
+          <h2>관리자 입장</h2>
+          <label>
+            <span>패스워드</span>
+            <input id="admin-password" type="password" autocomplete="current-password" required />
+          </label>
+          <p class="dialog-status" id="dialog-status" role="status"></p>
+          <div class="dialog-actions">
+            <button class="ghost-button" value="cancel" type="button" id="password-cancel">취소</button>
+            <button class="primary-button" type="submit">입장</button>
+          </div>
+        </form>
+      </dialog>
     </main>
 
     <script src="supabase-config.js"></script>
